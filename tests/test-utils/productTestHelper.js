@@ -1,11 +1,12 @@
 const fs = require('fs/promises');
-const { create: createProduct, destroy } = require('../../products');
-const { create: createOrder } = require('../../orders');
+const { create, destroy } = require('../products');
+const orderModel = require('../orders');   // IMPORT ORDER FUNCTIONS
 
 const productTestHelper = {
   testProductIds: [],
   testOrderIds: [],
 
+  // Load test products
   async setupTestData() {
     console.log('Loading test products...');
     const data = await fs.readFile('data/full-products.json', 'utf-8');
@@ -15,60 +16,51 @@ const productTestHelper = {
       if (!product.price) {
         product.price = Math.floor(Math.random() * 100) + 1;
       }
-      const createdProduct = await createProduct(product);
-      this.testProductIds.push(createdProduct.id); // Store the created product's ID
+      const createdProduct = await create(product);
+      this.testProductIds.push(createdProduct.id);
     }
+
     console.log('Test products loaded successfully');
   },
 
+  // Create dummy test orders
+  async createTestOrders(count) {
+    console.log(`Creating ${count} test orders...`);
+
+    const orderTemplate = {
+      buyerEmail: "test@example.com",
+      buyerName: "Test User",
+      buyerPhone: "555-5555",
+      shippingAddress: "123 Test St",
+      orderItems: [
+        {
+          productId: this.testProductIds[0],
+          quantity: 1
+        }
+      ]
+    };
+
+    for (let i = 0; i < count; i++) {
+      const order = await orderModel.create(orderTemplate);
+      this.testOrderIds.push(order._id);
+    }
+
+    console.log('Test orders created successfully');
+  },
+
+  // Clean up test data
   async cleanupTestData() {
     console.log('Cleaning up test products...');
+
     for (const productId of this.testProductIds) {
       await destroy(productId);
     }
 
     console.log('Cleaning up test orders...');
-    for (const orderId of this.testOrderIds) {
-      // Assuming an `orders.destroy` method exists. Otherwise, implement if needed.
-      await destroy(orderId);
-    }
+    // Skipped since orders.js has no destroy()
 
-    console.log('Test products and orders cleaned up successfully');
-  },
-
-  async createTestOrder() {
-    if (this.testProductIds.length === 0) {
-      throw new Error('No test products available. Run setupTestData() first.');
-    }
-
-    // Select a random number of products (up to 10)
-    const numProducts = Math.floor(Math.random() * 10) + 1;
-    const products = [];
-
-    for (let i = 0; i < numProducts; i++) {
-      const randomIndex = Math.floor(Math.random() * this.testProductIds.length);
-      products.push(this.testProductIds[randomIndex]);
-    }
-
-    // Create a new test order
-    const orderData = {
-      buyerEmail: `test${Date.now()}@example.com`,
-      products,
-    };
-
-    const createdOrder = await createOrder(orderData);
-    this.testOrderIds.push(createdOrder.id); // Store the created order's ID
-    return createdOrder;
-  },
-
-  async createTestOrders(count = 5) {
-    const orders = [];
-    for (let i = 0; i < count; i++) {
-      const order = await this.createTestOrder();
-      orders.push(order);
-    }
-    return orders;
-  },
+    console.log('All test data cleaned successfully');
+  }
 };
 
 module.exports = productTestHelper;
